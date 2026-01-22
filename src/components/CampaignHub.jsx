@@ -783,6 +783,7 @@ export default function CampaignHub() {
   const [taskStatuses, setTaskStatuses] = useState({});
   const [copiedText, setCopiedText] = useState(null);
   const [editingPost, setEditingPost] = useState(null); // { post, dateKey, index, dayLabel, theme }
+  const [editingCreative, setEditingCreative] = useState(null); // { text, type, use_for, platforms }
 
   const campaign = CAMPAIGN_TEMPLATES[activeCampaign];
   const campaignData = campaign?.campaign;
@@ -1394,16 +1395,25 @@ export default function CampaignHub() {
                 <div key={idx} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <p className="font-semibold text-gray-900 text-lg">{hook.text}</p>
-                    <button
-                      onClick={() => copyToClipboard(hook.text, `headline-${idx}`)}
-                      className="p-1 text-gray-400 hover:text-purple-600"
-                    >
-                      {copiedText === `headline-${idx}` ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingCreative({ ...hook, idx, category: 'headline' })}
+                        className="p-1 text-gray-400 hover:text-purple-600"
+                        title="Edit with AI"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(hook.text, `headline-${idx}`)}
+                        className="p-1 text-gray-400 hover:text-purple-600"
+                      >
+                        {copiedText === `headline-${idx}` ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <p className="text-xs text-purple-600 mt-2">Use for: {hook.use_for}</p>
                   <div className="flex gap-1 mt-2">
@@ -1427,16 +1437,25 @@ export default function CampaignHub() {
                 <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <p className="text-gray-900">{hook.text}</p>
-                    <button
-                      onClick={() => copyToClipboard(hook.text, `hook-${idx}`)}
-                      className="p-1 text-gray-400 hover:text-blue-600 ml-2"
-                    >
-                      {copiedText === `hook-${idx}` ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1 ml-2">
+                      <button
+                        onClick={() => setEditingCreative({ ...hook, idx, category: 'hook' })}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                        title="Edit with AI"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(hook.text, `hook-${idx}`)}
+                        className="p-1 text-gray-400 hover:text-blue-600"
+                      >
+                        {copiedText === `hook-${idx}` ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <p className="text-xs text-blue-600 mt-2">Use for: {hook.use_for}</p>
                   <div className="flex gap-1 mt-2">
@@ -1460,16 +1479,25 @@ export default function CampaignHub() {
                 <div key={idx} className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <p className="font-medium text-gray-900">{hook.text}</p>
-                    <button
-                      onClick={() => copyToClipboard(hook.text, `cta-${idx}`)}
-                      className="p-1 text-gray-400 hover:text-green-600"
-                    >
-                      {copiedText === `cta-${idx}` ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingCreative({ ...hook, idx, category: 'cta' })}
+                        className="p-1 text-gray-400 hover:text-green-600"
+                        title="Edit with AI"
+                      >
+                        <Wand2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(hook.text, `cta-${idx}`)}
+                        className="p-1 text-gray-400 hover:text-green-600"
+                      >
+                        {copiedText === `cta-${idx}` ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <p className="text-xs text-green-600 mt-2">Use for: {hook.use_for}</p>
                 </div>
@@ -1486,7 +1514,16 @@ export default function CampaignHub() {
             <div className="space-y-3">
               {campaignData.creative_hooks.filter(h => h.type === 'visual').map((hook, idx) => (
                 <div key={idx} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <p className="text-gray-900">{hook.text}</p>
+                  <div className="flex items-start justify-between">
+                    <p className="text-gray-900">{hook.text}</p>
+                    <button
+                      onClick={() => setEditingCreative({ ...hook, idx, category: 'visual' })}
+                      className="p-1 text-gray-400 hover:text-orange-600 ml-2"
+                      title="Edit with AI"
+                    >
+                      <Wand2 className="w-4 h-4" />
+                    </button>
+                  </div>
                   <p className="text-xs text-orange-600 mt-2">Use for: {hook.use_for}</p>
                   <div className="flex gap-1 mt-2">
                     {hook.platforms.map(p => (
@@ -1498,6 +1535,23 @@ export default function CampaignHub() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI Creative Editor Modal */}
+      {editingCreative && (
+        <PostChatEditor
+          post={{ content: editingCreative.text }}
+          onUpdatePost={(newContent) => {
+            // Update would need state management for persistence
+            // For now, user can copy the improved version
+            copyToClipboard(newContent, 'ai-edited');
+            setEditingCreative(null);
+          }}
+          onClose={() => setEditingCreative(null)}
+          platform={editingCreative.platforms?.join(', ') || 'All Platforms'}
+          dateLabel={`${editingCreative.category?.charAt(0).toUpperCase() + editingCreative.category?.slice(1) || 'Creative'} Element`}
+          theme={`${editingCreative.use_for || 'Campaign creative'} - ${editingCreative.type || 'copy element'}`}
+        />
       )}
     </div>
   );

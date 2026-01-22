@@ -10,10 +10,12 @@ import {
   Image,
   Clock,
   CheckCircle,
-  X
+  X,
+  Wand2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { format } from 'date-fns';
+import PostChatEditor from '../components/PostChatEditor';
 
 const POST_TYPES = [
   { id: 'STANDARD', label: 'Update', icon: FileText, description: 'Share news and updates' },
@@ -173,6 +175,7 @@ function CreatePostModal({ isOpen, onClose, onCreate }) {
   const [ctaType, setCtaType] = useState('');
   const [ctaUrl, setCtaUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAIEditor, setShowAIEditor] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -307,14 +310,24 @@ function CreatePostModal({ isOpen, onClose, onCreate }) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Post Content
             </label>
-            <textarea
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="Write your post content..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              rows={4}
-              required
-            />
+            <div className="relative">
+              <textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="Write your post content..."
+                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={4}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowAIEditor(true)}
+                className="absolute right-3 top-3 p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                title="Edit with AI"
+              >
+                <Wand2 className="w-5 h-5" />
+              </button>
+            </div>
             <p className="text-xs text-gray-500 mt-1">
               {summary.length}/1500 characters
             </p>
@@ -449,6 +462,21 @@ function CreatePostModal({ isOpen, onClose, onCreate }) {
             </button>
           </div>
         </form>
+
+        {/* AI Editor Modal */}
+        {showAIEditor && (
+          <PostChatEditor
+            post={{ content: summary || "Write your Google Business Profile post here..." }}
+            onUpdatePost={(newContent) => {
+              setSummary(newContent);
+              setShowAIEditor(false);
+            }}
+            onClose={() => setShowAIEditor(false)}
+            platform="Google Business Profile"
+            dateLabel={postType === 'EVENT' ? `Event: ${eventTitle || 'New Event'}` : postType === 'OFFER' ? 'Offer Post' : 'Update Post'}
+            theme={postType === 'EVENT' ? 'Event promotion' : postType === 'OFFER' ? 'Special offer/promotion' : 'Business update'}
+          />
+        )}
       </div>
     </div>
   );

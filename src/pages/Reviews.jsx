@@ -8,10 +8,12 @@ import {
   CheckCircle,
   AlertCircle,
   Filter,
-  Search
+  Search,
+  Wand2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { format } from 'date-fns';
+import PostChatEditor from '../components/PostChatEditor';
 
 const SUGGESTED_REPLIES = [
   {
@@ -54,6 +56,7 @@ function ReviewCard({ review, onReply }) {
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAIEditor, setShowAIEditor] = useState(false);
 
   const handleSubmitReply = async () => {
     if (!replyText.trim()) return;
@@ -178,14 +181,21 @@ function ReviewCard({ review, onReply }) {
             </div>
 
             {/* Reply Input */}
-            <div>
+            <div className="relative">
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder="Write your reply..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={4}
               />
+              <button
+                onClick={() => setShowAIEditor(true)}
+                className="absolute right-3 top-3 p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                title="Edit with AI"
+              >
+                <Wand2 className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Actions */}
@@ -218,6 +228,21 @@ function ReviewCard({ review, onReply }) {
               </button>
             </div>
           </div>
+        )}
+
+        {/* AI Editor Modal for Reply */}
+        {showAIEditor && (
+          <PostChatEditor
+            post={{ content: replyText || "Thank you for your review! We appreciate your feedback." }}
+            onUpdatePost={(newContent) => {
+              setReplyText(newContent);
+              setShowAIEditor(false);
+            }}
+            onClose={() => setShowAIEditor(false)}
+            platform="Review Reply"
+            dateLabel={`Response to ${review.reviewer?.displayName || 'Customer'}`}
+            theme={`${review.starRating} star review - ${review.comment?.substring(0, 50) || 'No comment'}...`}
+          />
         )}
       </div>
     </div>
