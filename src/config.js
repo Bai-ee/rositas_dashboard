@@ -1,3 +1,19 @@
+// Determine the redirect URI based on environment
+const getRedirectUri = () => {
+  // Check if running on Vercel/production
+  if (typeof window !== 'undefined') {
+    const host = window.location.host;
+    const protocol = window.location.protocol;
+
+    // If on Vercel or any non-localhost domain
+    if (!host.includes('localhost')) {
+      return `${protocol}//${host}/callback`;
+    }
+  }
+  // Default to localhost for development
+  return 'http://localhost:5173/callback';
+};
+
 // Google OAuth Configuration
 export const GOOGLE_CONFIG = {
   clientId: '949123415288-8qbn2po17i0e5icm0mqjl68eov1nvkbc.apps.googleusercontent.com',
@@ -6,8 +22,10 @@ export const GOOGLE_CONFIG = {
   // You can find this in Google Cloud Console > APIs & Services > Credentials
   clientSecret: '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',
 
-  // OAuth redirect URI - must match what's configured in Google Cloud Console
-  redirectUri: 'http://localhost:5173/callback',
+  // OAuth redirect URI - dynamically set based on environment
+  get redirectUri() {
+    return getRedirectUri();
+  },
 
   // Scopes required for Google Business Profile API
   scopes: [
