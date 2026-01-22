@@ -1,8 +1,20 @@
 import express from 'express';
 import cors from 'cors';
+import OpenAI from 'openai';
 
 const app = express();
 const PORT = 3001;
+
+// Initialize OpenAI client only if API key is available
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+  console.log('OpenAI client initialized');
+} else {
+  console.log('Warning: OPENAI_API_KEY not set. AI chat features will be unavailable.');
+}
 
 // Enable CORS for the frontend
 app.use(cors({
@@ -251,33 +263,39 @@ app.post('/api/locations/:locationId/metrics', async (req, res) => {
   if (!authHeader) return res.status(401).json({ error: 'No authorization header' });
 
   try {
-    // Use the Business Profile Performance API
-    // The API expects the full resource name format: locations/{locationId}
-    const url = `https://businessprofileperformance.googleapis.com/v1/locations/${locationId}:fetchMultiDailyMetricsTimeSeries`;
+    // Use the Business Profile Performance API with GET method and query params
+    // API format: GET https://businessprofileperformance.googleapis.com/v1/locations/{locationId}:fetchMultiDailyMetricsTimeSeries
+    const start = startDate || getDateDaysAgo(28);
+    const end = endDate || getDateDaysAgo(1);
 
-    const requestBody = {
-      dailyRange: {
-        startDate: startDate || getDateDaysAgo(28),
-        endDate: endDate || getDateDaysAgo(1)
-      },
-      dailyMetrics: [
-        'BUSINESS_IMPRESSIONS_DESKTOP_MAPS',
-        'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH',
-        'BUSINESS_IMPRESSIONS_MOBILE_MAPS',
-        'BUSINESS_IMPRESSIONS_MOBILE_SEARCH',
-        'BUSINESS_DIRECTION_REQUESTS',
-        'CALL_CLICKS',
-        'WEBSITE_CLICKS'
-      ]
-    };
+    // Build query parameters for GET request
+    const params = new URLSearchParams();
+    params.append('dailyRange.startDate.year', start.year);
+    params.append('dailyRange.startDate.month', start.month);
+    params.append('dailyRange.startDate.day', start.day);
+    params.append('dailyRange.endDate.year', end.year);
+    params.append('dailyRange.endDate.month', end.month);
+    params.append('dailyRange.endDate.day', end.day);
+
+    // Add each metric as a separate parameter
+    const metrics = [
+      'BUSINESS_IMPRESSIONS_DESKTOP_MAPS',
+      'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH',
+      'BUSINESS_IMPRESSIONS_MOBILE_MAPS',
+      'BUSINESS_IMPRESSIONS_MOBILE_SEARCH',
+      'BUSINESS_DIRECTION_REQUESTS',
+      'CALL_CLICKS',
+      'WEBSITE_CLICKS'
+    ];
+    metrics.forEach(metric => params.append('dailyMetrics', metric));
+
+    const url = `https://businessprofileperformance.googleapis.com/v1/locations/${locationId}:fetchMultiDailyMetricsTimeSeries?${params.toString()}`;
 
     console.log('Fetching metrics from:', url);
-    console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
+      method: 'GET',
+      headers: { 'Authorization': authHeader }
     });
 
     // Get response as text first to handle non-JSON responses
@@ -430,6 +448,128 @@ function getDateDaysAgo(days) {
     day: date.getDate()
   };
 }
+
+// ============================================
+// AI CHAT API (OpenAI)
+// ============================================
+
+// Check OpenAI configuration status
+app.get('/api/ai/status', (req, res) => {
+  const configured = openai !== null;
+  res.json({
+    configured,
+    keyPreview: configured ? 'sk-•••••••••••' : null
+  });
+});
+
+// Configure OpenAI API key
+app.post('/api/ai/configure', (req, res) => {
+  const { apiKey } = req.body;
+
+  if (!apiKey || !apiKey.startsWith('sk-')) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid API key format. Key should start with "sk-"'
+    });
+  }
+
+  try {
+    // Create new OpenAI client with the provided key
+    openai = new OpenAI({
+      apiKey: apiKey
+    });
+
+    console.log('OpenAI client configured via Settings UI');
+
+    res.json({
+      success: true,
+      keyPreview: `sk-•••${apiKey.slice(-4)}`
+    });
+  } catch (error) {
+    console.error('Error configuring OpenAI:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to configure OpenAI client'
+    });
+  }
+});
+
+app.post('/api/ai/chat', async (req, res) => {
+  const { messages, currentPost, platform, dateLabel, theme, toneGuide } = req.body;
+
+  if (!openai) {
+    return res.status(500).json({
+      error: 'OpenAI API key not configured',
+      message: "I'd love to help, but the OpenAI API key isn't set up yet. Please add OPENAI_API_KEY to your environment variables and restart the server.",
+    });
+  }
+
+  try {
+    const systemPrompt = `You are a helpful copywriting assistant for Rosita's Mexican Restaurant in DeKalb, IL. You help refine social media posts while maintaining their authentic voice.
+
+${toneGuide}
+
+CURRENT POST CONTEXT:
+- Platform: ${platform}
+- Date/Timing: ${dateLabel}
+- Theme/Purpose: ${theme}
+
+CURRENT POST DRAFT:
+"""
+${currentPost}
+"""
+
+YOUR ROLE:
+1. When the user asks for changes, provide a conversational response explaining what you're doing
+2. Always include a revised version of the post that incorporates their feedback
+3. Stay true to Rosita's warm, heritage-rooted voice
+4. Remember: max 1 emoji, no corporate buzzwords, no walls of hashtags
+5. Keep the essential information (prices, phone number, dates) intact unless asked to remove
+
+RESPONSE FORMAT:
+Provide your response as a JSON object with two fields:
+- "message": Your conversational response to the user
+- "revisedPost": The updated post content (or null if no revision was made)
+
+Example:
+{
+  "message": "I've warmed up the tone and added a heritage reference. The post now opens with our 1972 legacy and flows more naturally.",
+  "revisedPost": "Since 1972, we've been preparing game day spreads the northern way..."
+}`;
+
+    console.log('AI Chat request received for platform:', platform);
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 1500
+    });
+
+    const responseContent = completion.choices[0].message.content;
+    console.log('AI response:', responseContent);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(responseContent);
+    } catch (e) {
+      parsed = { message: responseContent, revisedPost: null };
+    }
+
+    res.json(parsed);
+
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    res.status(500).json({
+      error: error.message,
+      message: "I encountered an error while processing your request. Please check your OpenAI API key and try again."
+    });
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

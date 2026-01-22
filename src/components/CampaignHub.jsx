@@ -30,9 +30,11 @@ import {
   Share2,
   Eye,
   MessageSquare,
-  ExternalLink
+  ExternalLink,
+  Wand2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import PostChatEditor from './PostChatEditor';
 
 // Enhanced Campaign Templates with comprehensive strategy
 const CAMPAIGN_TEMPLATES = {
@@ -64,6 +66,13 @@ const CAMPAIGN_TEMPLATES = {
         serves: '8-10',
         items: ['20 crispy taco shells', 'Beef or chicken filling', 'Lettuce, tomato, cheese', '24oz queso con pico', 'Chips + sour cream'],
         tagline: 'The MVP of party platters'
+      },
+      {
+        name: 'App Kit',
+        price: 'XX',
+        serves: 'TBD',
+        items: ['Appetizer items - TBD', 'Sides - TBD', 'Dips & extras - TBD'],
+        tagline: 'Perfect party starters'
       }
     ],
     campaign: {
@@ -773,6 +782,7 @@ export default function CampaignHub() {
   });
   const [taskStatuses, setTaskStatuses] = useState({});
   const [copiedText, setCopiedText] = useState(null);
+  const [editingPost, setEditingPost] = useState(null); // { post, dateKey, index, dayLabel, theme }
 
   const campaign = CAMPAIGN_TEMPLATES[activeCampaign];
   const campaignData = campaign?.campaign;
@@ -797,6 +807,26 @@ export default function CampaignHub() {
     navigator.clipboard.writeText(text);
     setCopiedText(id);
     setTimeout(() => setCopiedText(null), 2000);
+  };
+
+  // Open AI editor for a post
+  const openPostEditor = (post, dateKey, index, dayLabel, theme) => {
+    setEditingPost({ post, dateKey, index, dayLabel, theme });
+  };
+
+  // Update post content after AI editing
+  const handleUpdatePost = (newContent) => {
+    if (!editingPost) return;
+
+    // Update the post content in the campaign data
+    // Note: Since CAMPAIGN_TEMPLATES is a const, we'd need state management for persistence
+    // For now, we'll update it locally for the session
+    const { dateKey, index } = editingPost;
+    if (campaignData?.daily_posts?.[dateKey]?.posts?.[index]) {
+      campaignData.daily_posts[dateKey].posts[index].content = newContent;
+    }
+
+    setEditingPost(null);
   };
 
   const calculateProgress = () => {
@@ -1290,6 +1320,13 @@ export default function CampaignHub() {
                         </div>
                         <div className="flex items-center gap-2">
                           <button
+                            onClick={() => openPostEditor(post, todayData.date, idx, todayData.day_label, todayData.theme)}
+                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
+                            title="Edit with AI"
+                          >
+                            <Wand2 className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => copyToClipboard(post.content, `post-${todayData.date}-${idx}`)}
                             className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
                             title="Copy content"
@@ -1329,6 +1366,18 @@ export default function CampaignHub() {
             );
           })()}
         </div>
+      )}
+
+      {/* AI Post Editor Modal */}
+      {editingPost && (
+        <PostChatEditor
+          post={editingPost.post}
+          onUpdatePost={handleUpdatePost}
+          onClose={() => setEditingPost(null)}
+          platform={editingPost.post.platform}
+          dateLabel={editingPost.dayLabel}
+          theme={editingPost.theme}
+        />
       )}
 
       {/* CREATIVE LIBRARY VIEW */}

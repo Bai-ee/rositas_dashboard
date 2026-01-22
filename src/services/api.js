@@ -112,10 +112,26 @@ class ApiService {
         body: JSON.stringify({ startDate, endDate }),
       });
 
-      const data = await response.json();
+      // Get response as text first to handle non-JSON responses
+      const responseText = await response.text();
 
-      // Return data regardless of success/failure so we can show the error
-      return data;
+      // Try to parse as JSON
+      try {
+        const data = JSON.parse(responseText);
+        return data;
+      } catch (parseError) {
+        // If response starts with HTML, it means the API returned an error page
+        if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+          return {
+            error: {
+              message: 'The Business Profile Performance API is not enabled or accessible. Please enable it in Google Cloud Console.',
+              hint: 'Go to Google Cloud Console → APIs & Services → Library → Search for "Business Profile Performance API" and enable it.',
+              code: 'API_NOT_ENABLED'
+            }
+          };
+        }
+        return { error: { message: 'Invalid response from API: ' + responseText.substring(0, 100) } };
+      }
     } catch (err) {
       return { error: { message: err.message } };
     }

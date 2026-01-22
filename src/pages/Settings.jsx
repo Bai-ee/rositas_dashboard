@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   MapPin,
@@ -12,7 +12,12 @@ import {
   Building,
   Phone,
   Globe,
-  AlertCircle
+  AlertCircle,
+  Key,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Save
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { format } from 'date-fns';
@@ -59,6 +64,65 @@ export default function Settings({ user, onLogout }) {
     isLoading
   } = useApp();
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // OpenAI API Key state
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [openaiStatus, setOpenaiStatus] = useState('checking'); // 'checking', 'connected', 'not_configured', 'error'
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [keySaveMessage, setKeySaveMessage] = useState('');
+
+  // Check OpenAI status on mount
+  useEffect(() => {
+    checkOpenAIStatus();
+  }, []);
+
+  const checkOpenAIStatus = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/ai/status');
+      const data = await response.json();
+      setOpenaiStatus(data.configured ? 'connected' : 'not_configured');
+      if (data.configured && data.keyPreview) {
+        setOpenaiKey(data.keyPreview);
+      }
+    } catch (error) {
+      setOpenaiStatus('error');
+    }
+  };
+
+  const handleSaveOpenAIKey = async () => {
+    if (!openaiKey || openaiKey.includes('•')) {
+      setKeySaveMessage('Please enter a valid API key');
+      setTimeout(() => setKeySaveMessage(''), 3000);
+      return;
+    }
+
+    setIsSavingKey(true);
+    setKeySaveMessage('');
+
+    try {
+      const response = await fetch('http://localhost:3001/api/ai/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: openaiKey })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOpenaiStatus('connected');
+        setKeySaveMessage('API key saved successfully!');
+        setOpenaiKey(data.keyPreview || 'sk-•••••••••••');
+      } else {
+        setKeySaveMessage(data.error || 'Failed to save API key');
+      }
+    } catch (error) {
+      setKeySaveMessage('Error connecting to server');
+    } finally {
+      setIsSavingKey(false);
+      setTimeout(() => setKeySaveMessage(''), 3000);
+    }
+  };
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -233,6 +297,91 @@ export default function Settings({ user, onLogout }) {
               <span className="font-medium text-gray-700">Posts API</span>
             </div>
             <StatusBadge status="success" label="Connected" />
+          </div>
+        </div>
+      </SettingSection>
+
+      {/* OpenAI Configuration */}
+      <SettingSection title="AI Assistant Configuration" description="Configure OpenAI for AI-powered post editing">
+        <div className="space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700">
+                The AI Assistant helps you refine social media posts using Rosita's authentic voice and tone guide.
+                Enter your OpenAI API key to enable this feature.
+              </p>
+              <a
+                href="https://platform.openai.com/api-keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-purple-600 hover:text-purple-700 inline-flex items-center gap-1 mt-1"
+              >
+                Get an API key from OpenAI
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Key className="w-5 h-5 text-gray-500" />
+              <span className="font-medium text-gray-700">OpenAI API</span>
+            </div>
+            <StatusBadge
+              status={
+                openaiStatus === 'connected' ? 'success' :
+                openaiStatus === 'not_configured' ? 'warning' :
+                openaiStatus === 'checking' ? 'pending' : 'error'
+              }
+              label={
+                openaiStatus === 'connected' ? 'Connected' :
+                openaiStatus === 'not_configured' ? 'Not Configured' :
+                openaiStatus === 'checking' ? 'Checking...' : 'Error'
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              OpenAI API Key
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={openaiKey}
+                  onChange={(e) => setOpenaiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <button
+                onClick={handleSaveOpenAIKey}
+                disabled={isSavingKey}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {isSavingKey ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+            {keySaveMessage && (
+              <p className={`text-sm ${keySaveMessage.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+                {keySaveMessage}
+              </p>
+            )}
+            <p className="text-xs text-gray-500">
+              Your API key is stored securely on the server and never exposed to the browser.
+            </p>
           </div>
         </div>
       </SettingSection>

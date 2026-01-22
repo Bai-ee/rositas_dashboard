@@ -163,7 +163,11 @@ export default function Analytics() {
               <h3 className="font-medium text-yellow-900">Performance Data Not Available</h3>
               <p className="text-yellow-700 mt-1">
                 {metrics?.error ? (
-                  <>API Error: {metrics.error.message || JSON.stringify(metrics.error)}</>
+                  metrics.error.code === 'API_NOT_ENABLED' ? (
+                    <span className="font-medium">{metrics.error.message}</span>
+                  ) : (
+                    <>API Error: {metrics.error.message || JSON.stringify(metrics.error)}</>
+                  )
                 ) : (
                   <>The Performance API returned no data. This could mean:</>
                 )}
