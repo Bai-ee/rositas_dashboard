@@ -77,9 +77,16 @@ export default function Settings({ user, onLogout }) {
     checkOpenAIStatus();
   }, []);
 
+  const getApiBase = () => {
+    if (typeof window !== 'undefined' && !window.location.host.includes('localhost')) {
+      return '/api';
+    }
+    return 'http://localhost:3001/api';
+  };
+
   const checkOpenAIStatus = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/ai/status');
+      const response = await fetch(`${getApiBase()}/ai/status`);
       const data = await response.json();
       setOpenaiStatus(data.configured ? 'connected' : 'not_configured');
       if (data.configured && data.keyPreview) {
@@ -101,7 +108,7 @@ export default function Settings({ user, onLogout }) {
     setKeySaveMessage('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/ai/configure', {
+      const response = await fetch(`${getApiBase()}/ai/configure`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: openaiKey })

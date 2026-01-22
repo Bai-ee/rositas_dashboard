@@ -1,4 +1,17 @@
-const API_BASE = 'http://localhost:3001/api';
+// Use localhost for development, relative path for Vercel production
+const getApiBase = () => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.host;
+    // If on localhost, use the Express server
+    if (host.includes('localhost')) {
+      return 'http://localhost:3001/api';
+    }
+  }
+  // On Vercel, use relative path to serverless functions
+  return '/api';
+};
+
+const API_BASE = getApiBase();
 
 class ApiService {
   constructor() {
@@ -43,6 +56,10 @@ class ApiService {
   // LOCATIONS
   // ============================================
   async getLocations(accountId) {
+    // Support both local Express (path params) and Vercel (query params)
+    if (this.isVercel()) {
+      return this.request(`/locations?accountId=${accountId}`);
+    }
     return this.request(`/accounts/${accountId}/locations`);
   }
 
@@ -50,10 +67,19 @@ class ApiService {
   // REVIEWS
   // ============================================
   async getReviews(accountId, locationId) {
+    if (this.isVercel()) {
+      return this.request(`/reviews?accountId=${accountId}&locationId=${locationId}`);
+    }
     return this.request(`/accounts/${accountId}/locations/${locationId}/reviews`);
   }
 
   async replyToReview(accountId, locationId, reviewId, comment) {
+    if (this.isVercel()) {
+      return this.request(`/reviews?accountId=${accountId}&locationId=${locationId}&reviewId=${reviewId}&action=reply`, {
+        method: 'PUT',
+        body: JSON.stringify({ comment }),
+      });
+    }
     return this.request(`/accounts/${accountId}/locations/${locationId}/reviews/${reviewId}/reply`, {
       method: 'POST',
       body: JSON.stringify({ comment }),
@@ -61,6 +87,11 @@ class ApiService {
   }
 
   async deleteReviewReply(accountId, locationId, reviewId) {
+    if (this.isVercel()) {
+      return this.request(`/reviews?accountId=${accountId}&locationId=${locationId}&reviewId=${reviewId}&action=reply`, {
+        method: 'DELETE',
+      });
+    }
     return this.request(`/accounts/${accountId}/locations/${locationId}/reviews/${reviewId}/reply`, {
       method: 'DELETE',
     });
@@ -70,10 +101,19 @@ class ApiService {
   // POSTS
   // ============================================
   async getPosts(accountId, locationId) {
+    if (this.isVercel()) {
+      return this.request(`/posts?accountId=${accountId}&locationId=${locationId}`);
+    }
     return this.request(`/accounts/${accountId}/locations/${locationId}/posts`);
   }
 
   async createPost(accountId, locationId, postData) {
+    if (this.isVercel()) {
+      return this.request(`/posts?accountId=${accountId}&locationId=${locationId}`, {
+        method: 'POST',
+        body: JSON.stringify(postData),
+      });
+    }
     return this.request(`/accounts/${accountId}/locations/${locationId}/posts`, {
       method: 'POST',
       body: JSON.stringify(postData),
@@ -81,6 +121,12 @@ class ApiService {
   }
 
   async updatePost(accountId, locationId, postId, postData) {
+    if (this.isVercel()) {
+      return this.request(`/posts?accountId=${accountId}&locationId=${locationId}&postId=${postId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(postData),
+      });
+    }
     return this.request(`/accounts/${accountId}/locations/${locationId}/posts/${postId}`, {
       method: 'PATCH',
       body: JSON.stringify(postData),
@@ -88,9 +134,18 @@ class ApiService {
   }
 
   async deletePost(accountId, locationId, postId) {
+    if (this.isVercel()) {
+      return this.request(`/posts?accountId=${accountId}&locationId=${locationId}&postId=${postId}`, {
+        method: 'DELETE',
+      });
+    }
     return this.request(`/accounts/${accountId}/locations/${locationId}/posts/${postId}`, {
       method: 'DELETE',
     });
+  }
+
+  isVercel() {
+    return typeof window !== 'undefined' && !window.location.host.includes('localhost');
   }
 
   // ============================================
@@ -102,8 +157,12 @@ class ApiService {
       return { error: { message: 'No access token set' } };
     }
 
+    const endpoint = this.isVercel()
+      ? `${API_BASE}/metrics?locationId=${locationId}`
+      : `${API_BASE}/locations/${locationId}/metrics`;
+
     try {
-      const response = await fetch(`${API_BASE}/locations/${locationId}/metrics`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.token}`,

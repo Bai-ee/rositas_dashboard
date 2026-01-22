@@ -17,6 +17,14 @@ import {
 } from 'lucide-react';
 
 // Rosita's Master Tone Guide
+// Get API base URL based on environment
+const getApiBase = () => {
+  if (typeof window !== 'undefined' && !window.location.host.includes('localhost')) {
+    return '/api';
+  }
+  return 'http://localhost:3001/api';
+};
+
 const ROSITAS_TONE_GUIDE = `
 ROSITA'S TONE COPYWRITING GUIDE:
 
@@ -104,7 +112,7 @@ Just tell me what you'd like to change! For example:
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/ai/chat', {
+      const response = await fetch(`${getApiBase()}/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
